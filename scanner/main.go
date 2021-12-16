@@ -19,11 +19,11 @@ var errFile = os.Stderr
 
 func handleJar(path string, ra io.ReaderAt, sz int64) {
 	if verbose {
-		fmt.Fprintf(logFile, "Inspecting %s...\n", path)
+		fmt.Fprintf(logFile, "INFO: Inspecting %s...\n", path)
 	}
 	zr, err := zip.NewReader(ra, sz)
 	if err != nil {
-		fmt.Fprintf(logFile, "cant't open JAR file: %s (size %d): %v\n", path, sz, err)
+		fmt.Fprintf(logFile, "ERROR: Cant't open JAR file: %s (size %d): %v\n", path, sz, err)
 		return
 	}
 	for _, file := range zr.File {
@@ -34,28 +34,28 @@ func handleJar(path string, ra io.ReaderAt, sz int64) {
 		case ".jar", ".war", ".ear":
 			fr, err := file.Open()
 			if err != nil {
-				fmt.Fprintf(logFile, "can't open JAR file member for reading: %s (%s): %v\n", path, file.Name, err)
+				fmt.Fprintf(logFile, "ERROR: Can't open JAR file member for reading: %s (%s): %v\n", path, file.Name, err)
 				continue
 			}
 			buf, err := ioutil.ReadAll(fr)
 			fr.Close()
 			if err != nil {
-				fmt.Fprintf(logFile, "can't read JAR file member: %s (%s): %v\n", path, file.Name, err)
+				fmt.Fprintf(logFile, "ERROR: Can't read JAR file member: %s (%s): %v\n", path, file.Name, err)
 			}
 			handleJar(path+"::"+file.Name, bytes.NewReader(buf), int64(len(buf)))
 		default:
 			fr, err := file.Open()
 			if err != nil {
-				fmt.Fprintf(logFile, "can't open JAR file member for reading: %s (%s): %v\n", path, file.Name, err)
+				fmt.Fprintf(logFile, "ERROR: Can't open JAR file member for reading: %s (%s): %v\n", path, file.Name, err)
 				continue
 			}
 
-			// Identify class filess by magic bytes
+			// Identify class files by magic bytes
 			buf := bytes.NewBuffer(nil)
 			if _, err := io.CopyN(buf, fr, 4); err != nil {
 				if err == io.EOF {
 					if !quiet {
-						fmt.Fprintf(logFile, "can't read magic from JAR file member: %s (%s): %v\n", path, file.Name, err)
+						fmt.Fprintf(logFile, "VERBOSE: Can't read hash from JAR file member: %s (%s): %v\n", path, file.Name, err)
 					}
 				}
 				fr.Close()
@@ -67,11 +67,11 @@ func handleJar(path string, ra io.ReaderAt, sz int64) {
 			_, err = io.Copy(buf, fr)
 			fr.Close()
 			if err != nil {
-				fmt.Fprintf(logFile, "can't read JAR file member: %s (%s): %v\n", path, file.Name, err)
+				fmt.Fprintf(logFile, "WARNING: Can't read JAR file member: %s (%s): %v\n", path, file.Name, err)
 				continue
 			}
 			if desc := filter.IsVulnerableClass(buf.Bytes(), file.Name, !ignoreV1); desc != "" {
-				fmt.Fprintf(logFile, "indicator for vulnerable component found in %s (%s): %s\n", path, file.Name, desc)
+				fmt.Fprintf(logFile, "CRITICAL: Possible vulnerability found in %s (%s): %s\n", path, file.Name, desc)
 				continue
 			}
 		}
